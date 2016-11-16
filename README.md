@@ -3,8 +3,6 @@ Gratka flats challenge
 ======================
 
 Predict the price of flats in Poznań.
-Each entry in training data set is described by: __Price, Rooms, SqrMeters, Floor, Location, Description__.
-Evaluation metric is RMSE.
 
 
 Directory structure
