@@ -151,6 +151,10 @@ xNew = np.zeros(shape=(len(x), 2))
 for i in range(0, len(x)):
     xNew[i][0] = 1
     xNew[i][1] = x[i]
+	
+tsvfile = open('../test-A/out.tsv', 'w+')
+datawriter = csv.writer(tsvfile, delimiter='\n')#,quotechar="", quoting=csv.QUOTE_ALL)
+datawriter.writerow(y)
 
 m, n = np.shape(xNew)
 numIterations = 100
