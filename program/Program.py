@@ -97,7 +97,7 @@ def h(theta, x):
     return theta[0] + theta[1]*x
 
 ##########  przygotowanie danych
-dane = csv.reader(open("train.tsv"), delimiter="\t")
+dane = csv.reader(open("../train/train.tsv"), delimiter="\t")
 
 Param_Expected = []
 Param_Rooms = []
