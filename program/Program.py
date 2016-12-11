@@ -1,167 +1,132 @@
-import matplotlib
-import matplotlib.pyplot as pl
 import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+import ipywidgets as widgets
 import csv
-import random
+import warnings
+import sys
+import re
 
-from numpy import matrix
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+
 from IPython.display import display, Math, Latex
+
+reader = csv.reader(open("../train/train.tsv"), delimiter="\t")
+
+Param_Expected = [] 
+Param_Rooms = [] 
+Param_SqrMeters = [] 
+Param_Floor = [] 
+Param_Location = []
+Param_Desc = []
+
+for i in reader:
+    Param_Expected.append(float(i[0]))
+    Param_Rooms.append(float(i[1]))
+    Param_SqrMeters.append(float(i[2])) 
+    Param_Floor.append(float(i[3])) 
+    Param_Location.append(i[4])
+    Param_Desc.append(i[5])
+	
+	
+def norm(X,y):
+    return (X.T*X)**-1*X.T*y
 
 def LatexMatrix(matrix):
     ltx = r'\left[\begin{array}'
     m, n = matrix.shape
     ltx += '{' + ("r" * n) + '}'
     for i in range(m):
-        ltx += r" & ".join([('%.4f' % j.item()) for j in np.array(matrix[i]).reshape(-1)]) + r" \\ "
+        ltx += r" & ".join([('%.4f' % j.item()) for j in matrix[i]]) + r" \\ "
     ltx += r'\end{array}\right]'
     return ltx
 
-def Standaryzacja(x):
-    sr = []
-    od = []
-    ColumnCount = len(x) - 1
-    RawCount = len(x[0])
-    for a in range(ColumnCount):
-        sr.append(np.average(x[a], axis=None, weights=None, returned=False))
-        od.append(np.std(x[a]))
-        for i in range(RawCount):
-            x[a][i] = (x[a][i] - sr[a]) / od[a]
-    return x
+def JMx(theta,X,y):
+    m = len(y)
+    J = 1.0/(2.0*m)*((X*theta-y).T*(X*theta-y))
+    return J.item()
 
-def gradientDescent(x, y, theta, alpha, m, numIterations):
-    xNew = np.zeros(shape=(len(x), 2))
-    for i in range(0, len(x)):
-        xNew[i][0] = 1
-        xNew[i][1] = x[i]
-    x = xNew
-    xTrans = x.transpose()
-    for i in range(0, numIterations):
-        hypothesis = np.dot(x, theta)
-        loss = hypothesis - y
-        # avg cost per example (the 2 in 2*m doesn't really matter here.
-        # But to be consistent with the gradient, I include it)
-        cost = np.sum(loss ** 2) / (2 * m)
-        # avg gradient per example
-        gradient = np.dot(xTrans, loss) / m
-        # update
-        theta = theta - alpha * gradient
-    return theta
+def hMx(theta, X):
+    return X*theta
 
-def GDMx(fJ, fdJ, theta, X, y, alpha=0.1, eps=10 ** -3, limit=-1):
-    errorCurr = fJ(theta, X, y)
-    errors = [[errorCurr, theta]]
-    while (len(errors) < limit if limit != -1 else True):  # limit iterations if performance is really low
-        theta = theta - alpha * fdJ(theta, X, y)  # implementacja wzoru
-        errorCurr, errorPrev = fJ(theta, X, y), errorCurr
-        if abs(errorPrev - errorCurr) <= eps:
-            break
-        errors.append([errorCurr, theta])
-    return theta, errors
+def addFeauter(wdesc, wlocation):
+    sciezka = r'kamienica|kamienicy|Kamienica|Kamienicy'
+    sciezka2 = r'Centrum|centrum'
+    wTenementHouse = []
+    wCentrum = []
+    for i in range (len(wdesc)):
+        dopasowanie = re.search(sciezka, wdesc[i])
+        if dopasowanie:
+            wTenementHouse.append(float(1))
+        else:
+            wTenementHouse.append(float(0))
+        dopasowanie2 = re.search(sciezka2, wdesc[i])
+        dopasowanie3 = re.search(sciezka2, wlocation[i])
+        if dopasowanie2 or dopasowanie3:
+            wCentrum.append(float(1))
+        else:
+            wCentrum.append(float(0)) 
+    return wTenementHouse, wCentrum
 
-def genData(numPoints, bias, variance):
-    x = np.zeros(shape=(numPoints, 2))
-    xNorm = np.zeros(shape=numPoints)
-    y = np.zeros(shape=numPoints)
-    # basically a straight line
-    for i in range(0, numPoints):
-        # bias feature
-        x[i][0] = 1
-        x[i][1] = i
-        xNorm[i] = i
-        # our target variable
-        y[i] = (i + bias) + random.uniform(0, 1) * variance
-    return x, y, xNorm
+tenemenHouse = []
+tentrum = []
 
-def regdots(x, y, labelx, lebely):
-    fig = pl.figure(figsize=(16 * .6, 9 * .6))
-    ax = fig.add_subplot(111)
-    fig.subplots_adjust(left=0.1, right=0.9, bottom=0.1, top=0.9)
-    ax.scatter(x, y, c='r', s=80, label="Dane")
+tenemenHouse, centrum = addFeauter(Param_Desc, Param_Location)
+m, np1 = len(Param_Rooms),4
 
-    ax.set_xlabel(labelx)
-    ax.set_ylabel(lebely)
-    ax.margins(.05, .05)
-    pl.ylim(min(y) - 1, max(y) + 1)
-    pl.xlim(min(x) - 1, max(x) + 1)
-    return fig
-
-def regline(fig, fun, theta, x):
-    ax = fig.axes[0]
-    x0, x1 = min(x), max(x)
-    X = [x0, x1]
-    Y = [fun(theta, x) for x in X]
-    ax.plot(X, Y, linewidth='2',
-            label=(r'$y=%.2f+%.2f x$' % (theta[0], theta[1])))
-
-def h(theta, x):
-    return theta[0] + theta[1]*x
-
-##########  przygotowanie danych
-dane = csv.reader(open("../train/train.tsv"), delimiter="\t")
-
-Param_Expected = []
-Param_Rooms = []
-Param_SqrMeters = []
-Param_Floor = []
-
-trainingPart = []
-
-for i in dane:
-    Param_Expected.append(float(i[0]))
-    Param_Rooms.append(float(i[1]))
-    Param_SqrMeters.append(float(i[2]))
-    Param_Floor.append(float(i[3]))
-
-m = 4500
-np1 = 4
-trainingPart.append(Param_Expected[:m])
-trainingPart.append(Param_Rooms[:m])
-trainingPart.append(Param_SqrMeters[:m])
-trainingPart.append(Param_Floor[:m])
-
-Xn = np.matrix(trainingPart[0:np1]).T
-XnNorm = np.matrix(trainingPart[0:np1]).T
-XnSource = np.matrix(trainingPart[0:np1]).T
+Param_Expected1 = np.matrix(Param_Expected).reshape(m,1)
+Param_SqrMeters1 = np.matrix(Param_SqrMeters).reshape(m,1)
+Param_Floor1 = np.matrix(Param_Floor).reshape(m,1)
+Param_Rooms1 = np.matrix(Param_Rooms).reshape(m,1)
+tenemenHouse_m = np.matrix(tenemenHouse).reshape(m,1)
+np1 = 5
 
 
-##########  normalizacja danych
-
-print Xn.shape
-XnSum = Xn.sum(axis=0)/m
-XnStd = np.std(Xn, axis=0)
-## normalizacja
-n = 2
-for j in range(0, np1):
-    numberOfCutCollumn = 0
-    for i in range(0, Xn.size/np1):
-        if not((XnSum.item(j) - n * XnStd.item(j) < Xn.item(i, j)) and (Xn.item(i, j) < XnSum.item(j) + n * XnStd.item(j))):
-            XnNorm = np.delete(XnNorm, i-numberOfCutCollumn, 0)
-            numberOfCutCollumn += 1
-    Xn = XnNorm
+XMx = np.matrix(np.concatenate((np.ones((m,1)), Param_Rooms1,Param_SqrMeters1,Param_Floor1, tenemenHouse_m ),axis=1)).reshape(m,np1)
+yMx = Param_Expected1
 
 
-print Xn.shape
+thetaNorm = norm(XMx, yMx)
+display(Math(r'\Large \theta = ' + LatexMatrix(thetaNorm)))
 
 
-##########  tworzenie gradientu
-y = matrix(XnNorm).transpose()[0].getA()[0]
-x = matrix(XnNorm).transpose()[2].getA()[0]
+reader = csv.reader(open("../test-A/in.tsv"), delimiter="\t")
 
-xNew = np.zeros(shape=(len(x), 2))
-for i in range(0, len(x)):
-    xNew[i][0] = 1
-    xNew[i][1] = x[i]
-	
-tsvfile = open('../test-A/out.tsv', 'w+')
-datawriter = csv.writer(tsvfile, delimiter='\n')#,quotechar="", quoting=csv.QUOTE_ALL)
-datawriter.writerow(y)
 
-m, n = np.shape(xNew)
-numIterations = 100
-alpha = 0.0005
-theta = np.ones(n)
-theta = gradientDescent(x, y, theta, alpha, m, numIterations)
-print "Wykres dla danych znormalizowanych"
-fig = regdots(x, y, "metraz", "cena")
-regline(fig, h, [theta[0], theta[1]], x)
-pl.show()
+wrooms = [] 
+wsqrmeters = [] 
+wfloor = [] 
+wlocation = []
+wdesc = []
+
+for i in reader:
+    wrooms.append(float(i[0]))
+    wsqrmeters.append(float(i[1])) 
+    wfloor.append(float(i[2])) 
+    wlocation.append(i[3])
+    wdesc.append(i[4])
+    
+wtenemenHouse = []
+
+wtenemenHouse, wcentrum = addFeauter(wdesc,wlocation)
+
+    
+w, np1 = len(wrooms),4  
+wsqrmeters_m = np.matrix(wsqrmeters).reshape(w,1)
+wfloor_m = np.matrix(wfloor).reshape(w,1)
+wrooms_m = np.matrix(wrooms).reshape(w,1)
+wtenemenHouse_m = np.matrix(wtenemenHouse).reshape(w,1)
+np1=5
+
+wXMx = np.matrix(np.concatenate((np.ones((w,1)), wrooms_m,wsqrmeters_m,wfloor_m, wtenemenHouse_m ),axis=1)).reshape(w,np1)
+    
+whMx = hMx(thetaNorm,wXMx)
+
+temp = []
+out = open('../test-A/out.tsv', 'w+')
+
+for i in range(len(whMx)):
+    temp.append(float(whMx[i]))
+datawriter = csv.writer(out, delimiter='\n')
+datawriter.writerow(temp)
