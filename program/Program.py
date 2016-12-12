@@ -12,24 +12,7 @@ with warnings.catch_warnings():
 
 from IPython.display import display, Math, Latex
 
-reader = csv.reader(open("../train/train.tsv"), delimiter="\t")
-
-Param_Expected = [] 
-Param_Rooms = [] 
-Param_SqrMeters = [] 
-Param_Floor = [] 
-Param_Location = []
-Param_Desc = []
-
-for i in reader:
-    Param_Expected.append(float(i[0]))
-    Param_Rooms.append(float(i[1]))
-    Param_SqrMeters.append(float(i[2])) 
-    Param_Floor.append(float(i[3])) 
-    Param_Location.append(i[4])
-    Param_Desc.append(i[5])
-	
-	
+#Funkcje	
 def norm(X,y):
     return (X.T*X)**-1*X.T*y
 
@@ -49,81 +32,62 @@ def JMx(theta,X,y):
 
 def hMx(theta, X):
     return X*theta
+	
+	
+#Wczytanie danych treningowych
 
-def addFeauter(wdesc, wlocation):
-    sciezka = r'kamienica|kamienicy|Kamienica|Kamienicy'
-    sciezka2 = r'Centrum|centrum'
-    wTenementHouse = []
-    wCentrum = []
-    for i in range (len(wdesc)):
-        dopasowanie = re.search(sciezka, wdesc[i])
-        if dopasowanie:
-            wTenementHouse.append(float(1))
-        else:
-            wTenementHouse.append(float(0))
-        dopasowanie2 = re.search(sciezka2, wdesc[i])
-        dopasowanie3 = re.search(sciezka2, wlocation[i])
-        if dopasowanie2 or dopasowanie3:
-            wCentrum.append(float(1))
-        else:
-            wCentrum.append(float(0)) 
-    return wTenementHouse, wCentrum
+reader = csv.reader(open("../train/train.tsv"), delimiter="\t")
 
-tenemenHouse = []
-tentrum = []
+Param_Expected = [] 
+Param_Rooms = [] 
+Param_SqrMeters = [] 
+Param_Floor = [] 
 
-tenemenHouse, centrum = addFeauter(Param_Desc, Param_Location)
+for i in reader:
+    Param_Expected.append(float(i[0]))
+    Param_Rooms.append(float(i[1]))
+    Param_SqrMeters.append(float(i[2])) 
+    Param_Floor.append(float(i[3])) 
+
 m, np1 = len(Param_Rooms),4
 
-Param_Expected1 = np.matrix(Param_Expected).reshape(m,1)
-Param_SqrMeters1 = np.matrix(Param_SqrMeters).reshape(m,1)
-Param_Floor1 = np.matrix(Param_Floor).reshape(m,1)
-Param_Rooms1 = np.matrix(Param_Rooms).reshape(m,1)
-tenemenHouse_m = np.matrix(tenemenHouse).reshape(m,1)
-np1 = 5
+Param_Expected1 = np.matrix(Param_Expected).reshape(len(Param_Rooms),1)
+Param_SqrMeters1 = np.matrix(Param_SqrMeters).reshape(len(Param_Rooms),1)
+Param_Floor1 = np.matrix(Param_Floor).reshape(len(Param_Rooms),1)
+Param_Rooms1 = np.matrix(Param_Rooms).reshape(len(Param_Rooms),1)
 
 
-XMx = np.matrix(np.concatenate((np.ones((m,1)), Param_Rooms1,Param_SqrMeters1,Param_Floor1, tenemenHouse_m ),axis=1)).reshape(m,np1)
+XMx = np.matrix(np.concatenate((np.ones((len(Param_Rooms),1)), Param_Rooms1,Param_SqrMeters1,Param_Floor1),axis=1)).reshape(m,4)
 yMx = Param_Expected1
 
 
 thetaNorm = norm(XMx, yMx)
 display(Math(r'\Large \theta = ' + LatexMatrix(thetaNorm)))
 
-
+#Wczytanie danych testowych
 reader = csv.reader(open("../test-A/in.tsv"), delimiter="\t")
 
-
-wrooms = [] 
-wsqrmeters = [] 
-wfloor = [] 
-wlocation = []
-wdesc = []
+Rooms = [] 
+Sqmeters = [] 
+Floor = [] 
 
 for i in reader:
-    wrooms.append(float(i[0]))
-    wsqrmeters.append(float(i[1])) 
-    wfloor.append(float(i[2])) 
-    wlocation.append(i[3])
-    wdesc.append(i[4])
-    
-wtenemenHouse = []
+    Rooms.append(float(i[0]))
+    Sqmeters.append(float(i[1])) 
+    Floor.append(float(i[2])) 
+  
+Sqmeters1 = np.matrix(Sqmeters).reshape(len(Rooms),1)
+Floor1 = np.matrix(Floor).reshape(len(Rooms),1)
+Rooms1 = np.matrix(Rooms).reshape(len(Rooms),1)
 
-wtenemenHouse, wcentrum = addFeauter(wdesc,wlocation)
-
-    
-w, np1 = len(wrooms),4  
-wsqrmeters_m = np.matrix(wsqrmeters).reshape(w,1)
-wfloor_m = np.matrix(wfloor).reshape(w,1)
-wrooms_m = np.matrix(wrooms).reshape(w,1)
-wtenemenHouse_m = np.matrix(wtenemenHouse).reshape(w,1)
-np1=5
-
-wXMx = np.matrix(np.concatenate((np.ones((w,1)), wrooms_m,wsqrmeters_m,wfloor_m, wtenemenHouse_m ),axis=1)).reshape(w,np1)
+wXMx = np.matrix(np.concatenate((np.ones((len(Rooms),1)), Rooms1,Sqmeters1,Floor1),axis=1)).reshape(len(Rooms),4)
     
 whMx = hMx(thetaNorm,wXMx)
 
 temp = []
+
+# Wypisanie wynikow
+
 out = open('../test-A/out.tsv', 'w+')
 
 for i in range(len(whMx)):
